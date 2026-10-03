@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "Smart E-Commerce API",
+    "description": "Local FastAPI customer API. Run Login first to populate access_token.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }] },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman User\",\n  \"email\": \"postman@example.com\",\n  \"password\": \"postman123\"\n}" }, "url": "{{base_url}}/auth/register" }
+        },
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["const data = pm.response.json();", "pm.environment.set('access_token', data.access_token);"] } }],
+          "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"customer123\"\n}" }, "url": "{{base_url}}/auth/login" }
+        },
+        { "name": "Current user", "request": { "method": "GET", "url": "{{base_url}}/auth/me" } }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "item": [
+        { "name": "Categories", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{base_url}}/categories" } },
+        { "name": "Products", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{base_url}}/products?sort=popularity&page=1&page_size=12" } },
+        { "name": "Product detail", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{base_url}}/products/{{product_slug}}" } }
+      ]
+    },
+    {
+      "name": "Cart and checkout",
+      "item": [
+        { "name": "Get cart", "request": { "method": "GET", "url": "{{base_url}}/cart" } },
+        { "name": "Add item", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1\n}" }, "url": "{{base_url}}/cart/items" } },
+        { "name": "Update cart item", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" }, "url": "{{base_url}}/cart/items/{{cart_item_id}}" } },
+        { "name": "Remove cart item", "request": { "method": "DELETE", "url": "{{base_url}}/cart/items/{{cart_item_id}}" } },
+        { "name": "Clear cart", "request": { "method": "DELETE", "url": "{{base_url}}/cart" } },
+        {
+          "name": "Create checkout",
+          "event": [{ "listen": "test", "script": { "exec": ["const data = pm.response.json();", "pm.environment.set('order_number', data.order_number);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"shipping_address\": {\n    \"recipient_name\": \"Demo Customer\",\n    \"phone\": \"9876543210\",\n    \"line1\": \"12 Market Street\",\n    \"city\": \"Chennai\",\n    \"state\": \"Tamil Nadu\",\n    \"postal_code\": \"600001\",\n    \"country_code\": \"IN\"\n  }\n}" }, "url": "{{base_url}}/checkout/create-session" }
+        },
+        { "name": "Complete local demo checkout", "request": { "method": "POST", "url": "{{base_url}}/checkout/demo-complete/{{order_number}}" } },
+        { "name": "Stripe webhook (requires signed raw payload)", "request": { "auth": { "type": "noauth" }, "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "stripe-signature", "value": "{{stripe_signature}}" }], "body": { "mode": "raw", "raw": "{}" }, "url": "{{base_url}}/checkout/stripe/webhook", "description": "Use Stripe CLI for a valid signature; this placeholder request intentionally fails signature validation." } }
+      ]
+    },
+    {
+      "name": "Orders and notifications",
+      "item": [
+        { "name": "Orders", "request": { "method": "GET", "url": "{{base_url}}/orders" } },
+        { "name": "Order detail", "request": { "method": "GET", "url": "{{base_url}}/orders/{{order_number}}" } },
+        { "name": "Cancel unpaid order", "request": { "method": "POST", "url": "{{base_url}}/orders/{{order_number}}/cancel" } },
+        { "name": "Notifications", "request": { "method": "GET", "url": "{{base_url}}/notifications" } },
+        { "name": "Mark notification read", "request": { "method": "PATCH", "url": "{{base_url}}/notifications/{{notification_id}}/read" } },
+        { "name": "Mark all read", "request": { "method": "POST", "url": "{{base_url}}/notifications/read-all" } }
+      ]
+    }
+  ]
+}

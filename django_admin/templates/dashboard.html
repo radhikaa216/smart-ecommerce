@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Commerce dashboard</title>
+  <style>
+    :root{font-family:Inter,system-ui,sans-serif;color:#18211d;background:#f5f7f4}body{margin:0}.shell{max-width:1180px;margin:auto;padding:32px 20px}.top{display:flex;justify-content:space-between;align-items:center;gap:16px}.top a,.actions a{color:#fff;background:#173f35;padding:10px 14px;border-radius:9px;text-decoration:none}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:26px 0}.card,.panel{background:#fff;border:1px solid #dfe7e2;border-radius:16px;padding:20px;box-shadow:0 8px 24px #183c2c0d}.value{font-size:30px;font-weight:750;margin-top:8px}.panels{display:grid;grid-template-columns:1.2fr 1fr;gap:18px}.bar{display:grid;grid-template-columns:130px 1fr 90px;gap:10px;align-items:center;margin:14px 0}.track{height:10px;background:#e6ece8;border-radius:10px;overflow:hidden}.fill{height:100%;background:#d77a45;border-radius:10px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #e9eeeb}.danger{color:#a33b20}.actions{display:flex;gap:8px}@media(max-width:800px){.grid{grid-template-columns:repeat(2,1fr)}.panels{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body><main class="shell">
+  <header class="top"><div><p>SMART COMMERCE</p><h1>Operations dashboard</h1></div><div class="actions"><a href="/admin/">Manage data</a><a href="/reports/sales.csv">CSV</a><a href="/reports/sales.pdf">PDF</a></div></header>
+  <section class="grid">
+    <div class="card">Revenue<div class="value">₹{{ total_revenue }}</div></div>
+    <div class="card">Orders<div class="value">{{ total_orders }}</div></div>
+    <div class="card">Paid orders<div class="value">{{ paid_orders }}</div></div>
+    <div class="card">Customers<div class="value">{{ customers }}</div></div>
+  </section>
+  <section class="panels">
+    <div class="panel"><h2>Top products</h2>{% for item in top_products %}<div class="bar"><span>{{ item.product_name|truncatechars:20 }}</span><div class="track"><div class="fill" style="width:{% widthratio item.quantity 20 100 %}%"></div></div><strong>{{ item.quantity }} sold</strong></div>{% empty %}<p>No paid orders yet.</p>{% endfor %}</div>
+    <div class="panel"><h2>Low stock</h2><table><tr><th>Product</th><th>SKU</th><th>Stock</th></tr>{% for product in low_stock %}<tr><td>{{ product.name }}</td><td>{{ product.sku }}</td><td class="danger">{{ product.stock }}</td></tr>{% empty %}<tr><td colspan="3">Stock levels are healthy.</td></tr>{% endfor %}</table></div>
+  </section>
+  <section class="panel" style="margin-top:18px"><h2>Revenue trend</h2><canvas id="revenueChart" height="80"></canvas><noscript>{% for row in revenue_trend %}<p>{{ row.day }} — ₹{{ row.revenue }}</p>{% endfor %}</noscript></section>
+  {{ chart_labels|json_script:"chart-labels" }}{{ chart_values|json_script:"chart-values" }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script>const labels=JSON.parse(document.getElementById('chart-labels').textContent);const values=JSON.parse(document.getElementById('chart-values').textContent);if(window.Chart){new Chart(document.getElementById('revenueChart'),{type:'line',data:{labels,datasets:[{label:'Revenue',data:values,borderColor:'#d77a45',backgroundColor:'#d77a4522',fill:true,tension:.35}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}})}</script>
+</main></body></html>

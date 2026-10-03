@@ -1,0 +1,126 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-smart_ecommerce}
+      MYSQL_USER: ${MYSQL_USER:-smart_ecommerce}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_ecommerce}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  django:
+    build:
+      context: ./django_admin
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+    command: sh -c "python manage.py migrate && python manage.py seed_demo && python manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - ./django_admin:/app
+      - ./media:/app/media
+      - ./exports:/app/exports
+    ports:
+      - "8001:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  celery:
+    build:
+      context: ./django_admin
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+    command: celery -A config worker -l INFO
+    volumes:
+      - ./django_admin:/app
+      - ./exports:/app/exports
+    depends_on:
+      django:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    build:
+      context: ./django_admin
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+    command: celery -A config beat -l INFO
+    volumes:
+      - ./django_admin:/app
+    depends_on:
+      django:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  fastapi:
+    build:
+      context: ./fastapi_backend
+    env_file: .env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379/0
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./fastapi_backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      django:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file: .env
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - fastapi
+
+volumes:
+  mysql_data:
+  frontend_modules:

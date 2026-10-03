@@ -1,0 +1,31 @@
+# Environment variables
+.env
+**/.env
+
+# Python virtual environments
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Frontend / test output
+node_modules/
+dist/
+coverage/
+.pytest_cache/
+*.tsbuildinfo
+
+# Local application data
+*.sqlite3
+media/
+exports/
+staticfiles/
