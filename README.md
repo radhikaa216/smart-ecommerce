@@ -1,6 +1,6 @@
 # Smart E-Commerce Platform
 
-A production-style, local-only office project using React, FastAPI, Django, MySQL, Redis, Celery, Stripe test mode, Auth0 development authentication, and Mailpit.
+A production-style, local office project using React, FastAPI, Django, MySQL, Redis, Celery, Stripe test mode, Auth0 development authentication, and authenticated SMTP email.
 
 ## What is implemented
 
@@ -13,7 +13,7 @@ A production-style, local-only office project using React, FastAPI, Django, MySQ
 - Local product-image upload through Django Admin
 - Sales dashboard, low-stock alerts, CSV export, and PDF export
 - Redis/Celery email and reservation-expiry jobs
-- Mailpit browser inbox for all local emails
+- Authenticated SMTP delivery to real recipient inboxes
 - MySQL schema, Django migrations, automated tests, and Postman collection
 
 ## Prerequisites
@@ -23,6 +23,7 @@ The recommended setup only needs:
 - Docker Desktop with Docker Compose
 - A Stripe account in test mode for the real payment demonstration
 - An Auth0 development tenant for the Auth0 demonstration
+- SMTP credentials, such as a Gmail address and App Password, for real email delivery
 
 Node.js and Python are only needed when running services outside Docker.
 
@@ -45,7 +46,6 @@ Open:
 | FastAPI documentation | http://localhost:8000/docs |
 | Django Admin | http://localhost:8001/admin/ |
 | Analytics dashboard | http://localhost:8001/dashboard/ |
-| Mailpit inbox | http://localhost:8025 |
 
 Local demo accounts are created idempotently at startup:
 
@@ -93,7 +93,22 @@ To demonstrate Auth0:
 
 ## Email
 
-Celery sends mail to the local Mailpit SMTP service. Open http://localhost:8025 to view order messages. Nothing is delivered to real email addresses, and no sender-domain configuration is needed.
+Celery sends transactional messages through the authenticated SMTP provider configured in `.env`. For Gmail:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USE_TLS=true
+SMTP_USERNAME=sender@gmail.com
+SMTP_PASSWORD=your_google_app_password
+EMAIL_FROM_ADDRESS=sender@gmail.com
+```
+
+Use a Google App Password rather than the account password. Keep credentials only in the ignored `.env` file; never add them to `.env.example` or commit them. After changing SMTP settings, recreate the mail-producing services:
+
+```powershell
+docker compose up -d --force-recreate django celery celery-beat
+```
 
 ## Database ownership
 

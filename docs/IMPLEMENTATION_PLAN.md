@@ -4,9 +4,9 @@
 
 This office assignment will run entirely on a developer machine and will not be deployed to a production environment. "Production style" therefore means that the code will use clean service boundaries, environment-based configuration, migrations, validation, authorization, transactions, idempotent payment handling, background jobs, logging, automated tests, and documentation.
 
-It does not require AWS/Azure/GCP, a public domain, production DNS, Kubernetes, a cloud database, object storage, live Stripe payments, or a live email provider.
+It does not require AWS/Azure/GCP, a public domain, production DNS, Kubernetes, a cloud database, object storage, or live Stripe payments.
 
-Stripe and Auth0 remain external development services because the assignment explicitly asks for those integrations. Stripe will remain in test mode and Auth0 will use localhost callback URLs. All application data and supporting services will run locally.
+Stripe, Auth0, and the configured SMTP provider are external development services. Stripe remains in test mode, Auth0 uses localhost callback URLs, and application data and supporting infrastructure run locally.
 
 ## 2. Local technology stack
 
@@ -20,7 +20,7 @@ Stripe and Auth0 remain external development services because the assignment exp
 - Job broker and WebSocket event distribution: local Redis
 - Authentication: Auth0 development tenant
 - Payments: Stripe Checkout in test mode
-- Email demonstration: local Mailpit SMTP server and browser inbox
+- Email delivery: authenticated external SMTP provider
 - Product images: local `media/` directory
 - Charts: Chart.js
 - Reports: CSV and PDF generated locally
@@ -37,18 +37,17 @@ React :5173
    |                    |       |
    |                 Celery ----+
    |                    |
-   |                 Mailpit :1025
-   |                    |
-   |             Mail UI :8025
+   |             SMTP provider (external)
    |
    +---- Django Admin :8001 ---- local media/
 
 External development-only services:
 - Auth0 tenant for login and JWTs
 - Stripe test environment for checkout
+- Authenticated SMTP provider for transactional email
 ```
 
-MySQL is the permanent source of truth. Redis contains only temporary job/event data. Mailpit captures emails locally and does not deliver them to real addresses.
+MySQL is the permanent source of truth. Redis contains only temporary job/event data. Celery delivers transactional messages through the configured SMTP provider.
 
 ## 4. Application responsibilities
 
@@ -100,7 +99,7 @@ Implementation:
 
 - Preserve and review the existing FastAPI skeleton.
 - Create the React and Django applications.
-- Add Docker Compose services for MySQL, Redis, Mailpit, FastAPI, Django, React, and Celery.
+- Add Docker Compose services for MySQL, Redis, FastAPI, Django, React, and Celery.
 - Add `.env.example`, health checks, structured logging, formatting, and test commands.
 - Convert the baseline SQL design into Django models and migrations.
 - Add demo-data seed commands.
@@ -157,17 +156,17 @@ Implementation:
 
 Acceptance: Stripe test cards complete the checkout, and replaying a webhook does not duplicate payment or stock changes.
 
-### Phase 6: Local email and real-time notifications
+### Phase 6: Email and real-time notifications
 
 Implementation:
 
 - Notification records for payment and order events.
 - Authenticated WebSocket endpoint with Redis Pub/Sub.
-- Celery email tasks using local Mailpit SMTP.
+- Celery email tasks using authenticated SMTP.
 - HTML and plain-text templates for confirmation, payment failure, shipping, delivery, cancellation, and refund.
 - Email attempt/status logging.
 
-Acceptance: the React notification centre updates in real time and emails appear at `http://localhost:8025`.
+Acceptance: the React notification centre updates in real time and one transactional email reaches the intended recipient for each event.
 
 ### Phase 7: Analytics and reports
 
@@ -238,23 +237,26 @@ Manual work required:
 
 Not required: a custom Auth0 domain, production callback URLs, or production social-provider verification.
 
-## 8. Local email plan
+## 8. Authenticated SMTP email plan
 
-Mailpit replaces SendGrid for this non-deployed assignment. It behaves like an SMTP server, captures every outgoing email, and displays it in a local browser inbox.
+Transactional email is delivered through an SMTP provider configured with environment variables. Gmail SMTP and a Google App Password are suitable for this local demonstration.
 
 Implementation work:
 
-- SMTP configuration pointing to `mailpit:1025` inside Docker.
+- Provider-neutral SMTP host, port, TLS, username, and password configuration.
+- Credentials loaded only from the ignored local `.env` file.
 - Celery delivery and retry flow.
 - Branded HTML/plain-text templates.
 - Email logs and failure tests.
 
 Manual work required:
 
+- Configure an SMTP account and provider-specific App Password or credential.
+- Keep SMTP secrets out of source control.
 - Provide a store name, support email text, logo, and brand colors.
-- Open `http://localhost:8025` during the demo to show received messages.
+- Verify delivery in the recipient inbox and check spam filtering.
 
-Not required: SendGrid account, real email API key, sender/domain verification, DNS records, SPF, DKIM, or DMARC.
+Not required for local Gmail testing: a dedicated bulk-email provider, custom sending domain, or DNS authentication records.
 
 ## 9. Local images and files
 
@@ -271,7 +273,7 @@ Not required: S3, Cloudinary, access keys, buckets, or CDN configuration.
 | Branding | Logo, colors, support text, and sample products/images |
 | Auth0 | Development tenant, SPA/API registrations, localhost URLs, connections, roles, and public configuration |
 | Stripe | Test keys, Stripe CLI login, webhook forwarding, and test-mode configuration |
-| Email | No account setup; inspect messages in local Mailpit UI |
+| Email | SMTP account, App Password/credential, sender address, and recipient-inbox verification |
 | Database/Redis | No account setup; both run locally through Docker Compose |
 | Images | No account setup; files remain in local media storage |
 | Deployment | None |
@@ -282,7 +284,7 @@ Not required: S3, Cloudinary, access keys, buckets, or CDN configuration.
 - Production domains, SSL certificates, DNS, and CDN
 - AWS S3/SES, Azure, or GCP resources
 - Live Stripe payments and KYC
-- Live outbound email and sender-domain authentication
+- Production bulk-email infrastructure and custom sender-domain authentication
 - Production monitoring/on-call systems
 - Kubernetes and infrastructure-as-code
 - Real shipping-carrier integration
@@ -291,4 +293,4 @@ The code will keep provider interfaces and environment configuration clean enoug
 
 ## 12. Immediate starting point
 
-No vendor secrets are needed for the foundation and catalog phases. Work can begin with local Docker services, Auth0 placeholders, mocked Stripe responses in automated tests, and seeded sample products. Real Auth0 development values and Stripe test keys are needed only when their respective integration phases are demonstrated.
+No vendor secrets are needed for the foundation and catalog phases. SMTP credentials are required only to demonstrate real email delivery; Auth0 development values and Stripe test keys are needed only for their respective integration demonstrations.

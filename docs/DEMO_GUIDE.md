@@ -6,7 +6,7 @@
 2. Keep `AUTH_MODE=local`, `VITE_AUTH_MODE=local`, and `STRIPE_DEMO_MODE=true` for an offline demonstration.
 3. Run `powershell -ExecutionPolicy Bypass -File scripts/start-local.ps1`.
 4. Wait for MySQL health checks and Django migrations to finish.
-5. Open the storefront, Django Admin, and Mailpit URLs from the README.
+5. Open the storefront and Django Admin URLs from the README. Configure SMTP credentials in `.env` if you will demonstrate real email delivery.
 
 ## Suggested demonstration flow
 
@@ -15,7 +15,7 @@
 3. Add products to the cart and change quantities.
 4. Begin checkout and explain that prices and stock are revalidated on FastAPI.
 5. Complete local demo checkout and open order history.
-6. Open Mailpit to show the queued order email when the Celery worker is running.
+6. Verify the confirmation email in the recipient inbox and show the successful Celery task log.
 7. Sign in to Django Admin with `admin` / `admin123`.
 8. Add/edit a product and upload an image from the local machine.
 9. Update an order status and return to the React notification screen.
