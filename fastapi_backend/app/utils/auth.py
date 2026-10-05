@@ -60,6 +60,14 @@ def _decode_auth0_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Auth0 access token") from exc
 
 
+AUTH0_CLAIM_NAMESPACE = "https://smart-ecommerce.local"
+
+
+def _auth0_profile_claim(claims: dict, name: str):
+    """Read the namespaced profile claims added by the Auth0 Post-Login Action."""
+    return claims.get(f"{AUTH0_CLAIM_NAMESPACE}/{name}") or claims.get(name)
+
+
 def authenticate_token(token: str, db: Session) -> User:
     settings = get_settings()
     if settings.auth_mode == "auth0":
@@ -67,19 +75,51 @@ def authenticate_token(token: str, db: Session) -> User:
         subject = claims.get("sub")
         if not subject:
             raise HTTPException(status_code=401, detail="Token subject is missing")
-        user = db.query(User).filter(User.auth0_id == subject).first()
-        if not user:
-            email = claims.get("email") or f"{subject.replace('|', '_')}@auth0.local"
-            user = User(
-                auth0_id=subject,
-                email=email,
-                name=claims.get("name") or claims.get("nickname") or email.split("@")[0],
-                avatar_url=claims.get("picture"),
-                email_verified=bool(claims.get("email_verified")),
+
+        email = _auth0_profile_claim(claims, "email")
+        if not email:
+            raise HTTPException(
+                status_code=401,
+                detail="Auth0 access token is missing the email profile claim. Configure the Smart Ecommerce Post-Login Action.",
             )
-            db.add(user)
-            db.commit()
-            db.refresh(user)
+        email = str(email).lower()
+        name = _auth0_profile_claim(claims, "name") or _auth0_profile_claim(claims, "nickname") or email.split("@")[0]
+        picture = _auth0_profile_claim(claims, "picture")
+        email_verified = bool(_auth0_profile_claim(claims, "email_verified"))
+
+        user = db.query(User).filter(User.auth0_id == subject).first()
+        if user:
+            # Repair profiles created before the Auth0 profile claims were configured.
+            if user.email.endswith("@auth0.local"):
+                email_owner = db.query(User).filter(User.email == email, User.id != user.id).first()
+                if email_owner:
+                    raise HTTPException(status_code=409, detail="This email already belongs to a local account; contact an administrator to link it")
+                user.email = email
+            user.name = str(name)[:150]
+            user.avatar_url = picture
+            user.email_verified = email_verified
+        else:
+            # Safely link a pre-existing local-demo account with the identity
+            # Auth0 authenticated, rather than creating a duplicate email.
+            user = db.query(User).filter(User.email == email).first()
+            if user and user.auth0_id and user.auth0_id != subject:
+                raise HTTPException(status_code=409, detail="This email is already linked to another Auth0 identity")
+            if user:
+                user.auth0_id = subject
+                user.name = str(name)[:150]
+                user.avatar_url = picture
+                user.email_verified = email_verified
+            else:
+                user = User(
+                    auth0_id=subject,
+                    email=email,
+                    name=str(name)[:150],
+                    avatar_url=picture,
+                    email_verified=email_verified,
+                )
+                db.add(user)
+        db.commit()
+        db.refresh(user)
     else:
         try:
             claims = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])

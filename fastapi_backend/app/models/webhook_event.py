@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import BigInteger, Column, DateTime, Enum, JSON, String
 from sqlalchemy.sql import func
 
@@ -13,5 +15,7 @@ class PaymentWebhookEvent(Base):
     payload = Column(JSON, nullable=False)
     processing_status = Column(Enum("received", "processed", "failed", "ignored"), nullable=False, default="received")
     error_message = Column(String(1000), nullable=True)
-    received_at = Column(DateTime, nullable=False, server_default=func.now())
+    # Django's auto_now_add migration creates this column without a MySQL DEFAULT.
+    # Supply the timestamp explicitly so FastAPI inserts work with the shared schema.
+    received_at = Column(DateTime, nullable=False, default=datetime.utcnow, server_default=func.now())
     processed_at = Column(DateTime, nullable=True)
