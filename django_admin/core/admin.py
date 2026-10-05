@@ -3,19 +3,19 @@ import os
 from pathlib import Path
 
 from django import forms
-from django.contrib import admin, messages
-from django.core.files.storage import default_storage
 from django.conf import settings
+from django.contrib import admin, messages
+from django.contrib.auth.models import Group
+from django.core.files.storage import default_storage
 from django.db import transaction
 from passlib.context import CryptContext
+from redis import Redis
 
 from .models import (
-    Address, AuditLog, Cart, CartItem, Category, Customer, EmailDeliveryLog,
-    InventoryTransaction, Notification, Order, OrderItem, OrderStatusHistory,
-    Payment, PaymentWebhookEvent, Product, ProductImage, StockReservation,
+    Category, Customer, Notification, Order, OrderItem, OrderStatusHistory,
+    Payment, Product, ProductImage,
 )
 from .tasks import send_transactional_email
-from redis import Redis
 
 
 def publish_status_event(customer_id: int, order_number: str, order_status: str) -> None:
@@ -57,6 +57,8 @@ class ProductImageForm(forms.ModelForm):
 
 
 class ProductImageInline(admin.TabularInline):
+    """Images are managed from their product, not from a separate menu."""
+
     model = ProductImage
     form = ProductImageForm
     extra = 1
@@ -68,7 +70,14 @@ class ProductAdmin(admin.ModelAdmin):
     list_filter = ("category", "is_active", "currency")
     search_fields = ("name", "sku", "description")
     prepopulated_fields = {"slug": ("name",)}
+    list_select_related = ("category",)
+    list_per_page = 25
     inlines = [ProductImageInline]
+    fieldsets = (
+        ("Product information", {"fields": ("name", "slug", "sku", "category", "description")}),
+        ("Price and inventory", {"fields": ("price", "currency", "stock", "low_stock_threshold", "sales_count")}),
+        ("Visibility", {"fields": ("is_active", "deleted_at")}),
+    )
 
     @admin.display(boolean=True, description="Low stock")
     def low_stock(self, obj):
@@ -81,6 +90,7 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name",)
     prepopulated_fields = {"slug": ("name",)}
+    list_per_page = 25
 
 
 class UnifiedUserCreationForm(forms.ModelForm):
@@ -134,31 +144,65 @@ class UnifiedUserChangeForm(forms.ModelForm):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "role", "is_staff", "is_superuser", "is_active", "email_verified", "created_at")
-    list_filter = ("role", "is_staff", "is_superuser", "is_active", "email_verified")
+    list_display = ("name", "email", "role", "is_staff", "is_active", "email_verified", "created_at")
+    list_filter = ("role", "is_staff", "is_active", "email_verified")
     search_fields = ("name", "email", "auth0_id")
+    list_per_page = 25
     readonly_fields = ("auth0_id", "password_hash", "last_login", "last_login_at", "created_at", "updated_at")
 
     def get_form(self, request, obj=None, **kwargs):
         kwargs["form"] = UnifiedUserCreationForm if obj is None else UnifiedUserChangeForm
         return super().get_form(request, obj, **kwargs)
 
-    def get_fields(self, request, obj=None):
+    def get_fieldsets(self, request, obj=None):
         if obj is None:
-            return ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified", "password1", "password2")
-        return ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified", "avatar_url", "auth0_id", "local_password", "password_hash", "last_login", "last_login_at", "created_at", "updated_at")
+            return (
+                ("Profile", {"fields": ("name", "email", "role", "email_verified")}),
+                ("Access", {"fields": ("is_active", "is_staff", "is_superuser", "password1", "password2")}),
+            )
+        return (
+            ("Profile", {"fields": ("name", "email", "avatar_url", "role", "email_verified")}),
+            ("Access", {"fields": ("is_active", "is_staff", "is_superuser", "local_password")}),
+            ("Authentication details", {"classes": ("collapse",), "fields": ("auth0_id", "password_hash", "last_login", "last_login_at")}),
+            ("Record details", {"classes": ("collapse",), "fields": ("created_at", "updated_at")}),
+        )
 
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ("product_name", "product_sku", "unit_price", "quantity", "line_total")
+    can_delete = False
+    max_num = 0
+    fields = ("product_name", "product_sku", "unit_price", "quantity", "line_total")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 class PaymentInline(admin.TabularInline):
     model = Payment
     extra = 0
-    readonly_fields = ("provider", "amount", "status", "checkout_session_id", "payment_intent_id", "paid_at")
+    can_delete = False
+    max_num = 0
+    fields = ("provider", "amount", "currency", "status", "checkout_session_id", "payment_intent_id", "transaction_id", "paid_at")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+class OrderStatusHistoryInline(admin.TabularInline):
+    model = OrderStatusHistory
+    extra = 0
+    can_delete = False
+    max_num = 0
+    fields = ("from_status", "to_status", "note", "created_at")
+    readonly_fields = fields
+    verbose_name_plural = "Status history"
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Order)
@@ -166,14 +210,30 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ("order_number", "customer", "total", "payment_status", "order_status", "created_at")
     list_filter = ("payment_status", "order_status", "created_at")
     search_fields = ("order_number", "customer__email")
-    readonly_fields = ("order_number", "customer", "subtotal", "discount_total", "shipping_total", "tax_total", "total", "currency", "shipping_address", "created_at", "updated_at")
-    inlines = [OrderItemInline, PaymentInline]
+    list_select_related = ("customer",)
+    list_per_page = 25
+    readonly_fields = ("order_number", "customer", "subtotal", "discount_total", "shipping_total", "tax_total", "total", "currency", "shipping_address", "billing_address", "placed_at", "created_at", "updated_at")
+    inlines = [OrderItemInline, PaymentInline, OrderStatusHistoryInline]
+    fieldsets = (
+        ("Order", {"fields": ("order_number", "customer", "order_status", "payment_status", "customer_note")}),
+        ("Totals", {"fields": ("subtotal", "discount_total", "shipping_total", "tax_total", "total", "currency")}),
+        ("Delivery", {"fields": ("shipping_address", "billing_address")}),
+        ("Record details", {"classes": ("collapse",), "fields": ("placed_at", "created_at", "updated_at")}),
+    )
+
+    def has_add_permission(self, request):
+        return False
 
     def save_model(self, request, obj, form, change):
         previous = Order.objects.filter(pk=obj.pk).values_list("order_status", flat=True).first() if change else None
         super().save_model(request, obj, form, change)
         if previous and previous != obj.order_status:
-            OrderStatusHistory.objects.create(order=obj, from_status=previous, to_status=obj.order_status)
+            OrderStatusHistory.objects.create(
+                order=obj,
+                changed_by=request.user,
+                from_status=previous,
+                to_status=obj.order_status,
+            )
             Notification.objects.create(
                 customer=obj.customer,
                 notification_type="order_status",
@@ -189,30 +249,13 @@ class OrderAdmin(admin.ModelAdmin):
             messages.success(request, "Customer notification queued.")
 
 
-@admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
-    list_display = ("title", "customer", "notification_type", "is_read", "created_at")
-    list_filter = ("notification_type", "is_read")
-    search_fields = ("customer__email", "title", "message")
+# These records are still retained in MySQL and created by the application.
+# They are intentionally not registered as top-level admin menu items.
+try:
+    admin.site.unregister(Group)
+except admin.sites.NotRegistered:
+    pass
 
-
-@admin.register(InventoryTransaction)
-class InventoryTransactionAdmin(admin.ModelAdmin):
-    list_display = ("product", "transaction_type", "quantity_delta", "stock_after", "created_at")
-    list_filter = ("transaction_type",)
-    readonly_fields = ("created_at",)
-
-
-admin.site.register(Address)
-admin.site.register(Cart)
-admin.site.register(CartItem)
-admin.site.register(ProductImage)
-admin.site.register(Payment)
-admin.site.register(StockReservation)
-admin.site.register(OrderStatusHistory)
-admin.site.register(PaymentWebhookEvent)
-admin.site.register(EmailDeliveryLog)
-admin.site.register(AuditLog)
 admin.site.site_header = "Smart Commerce Administration"
 admin.site.site_title = "Smart Commerce"
-admin.site.index_title = "Operations"
+admin.site.index_title = "Store operations"
