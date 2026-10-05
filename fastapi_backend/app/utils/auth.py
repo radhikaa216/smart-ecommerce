@@ -70,7 +70,9 @@ def _auth0_profile_claim(claims: dict, name: str):
 
 def authenticate_token(token: str, db: Session) -> User:
     settings = get_settings()
-    if settings.auth_mode == "auth0":
+    token_algorithm = jwt.get_unverified_header(token).get("alg")
+    is_auth0_token = token_algorithm == "RS256"
+    if settings.auth_mode == "auth0" or (settings.auth_mode == "hybrid" and is_auth0_token):
         claims = _decode_auth0_token(token)
         subject = claims.get("sub")
         if not subject:

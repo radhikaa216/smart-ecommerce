@@ -13,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
-    if get_settings().auth_mode != "local":
+    if get_settings().auth_mode == "auth0":
         raise HTTPException(status_code=400, detail="Register through Auth0 Universal Login")
     email = user_data.email.lower()
     if db.query(User).filter(User.email == email).first():
@@ -27,7 +27,7 @@ def register_user(user_data: UserRegister, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login_user(user_data: UserLogin, db: Session = Depends(get_db)):
-    if get_settings().auth_mode != "local":
+    if get_settings().auth_mode == "auth0":
         raise HTTPException(status_code=400, detail="Log in through Auth0 Universal Login")
     user = db.query(User).filter(User.email == user_data.email.lower()).first()
     if not user or not verify_password(user_data.password, user.password_hash):

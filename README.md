@@ -82,7 +82,14 @@ AUTH_MODE=local
 VITE_AUTH_MODE=local
 ```
 
-To demonstrate Auth0:
+To make both local credentials and Auth0 available on the same login page, use hybrid mode after configuring Auth0:
+
+```env
+AUTH_MODE=hybrid
+VITE_AUTH_MODE=hybrid
+```
+
+To demonstrate Auth0 only:
 
 1. Create an Auth0 Single Page Application.
 2. Create an Auth0 API with audience `https://api.smart-ecommerce.local`.
