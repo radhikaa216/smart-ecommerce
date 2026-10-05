@@ -36,7 +36,6 @@
         { "name": "Add item", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1\n}" }, "url": "{{base_url}}/cart/items" } },
         { "name": "Update cart item", "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" }, "url": "{{base_url}}/cart/items/{{cart_item_id}}" } },
         { "name": "Remove cart item", "request": { "method": "DELETE", "url": "{{base_url}}/cart/items/{{cart_item_id}}" } },
-        { "name": "Clear cart", "request": { "method": "DELETE", "url": "{{base_url}}/cart" } },
         {
           "name": "Create checkout",
           "event": [{ "listen": "test", "script": { "exec": ["const data = pm.response.json();", "pm.environment.set('order_number', data.order_number);"] } }],
@@ -50,10 +49,7 @@
       "name": "Orders and notifications",
       "item": [
         { "name": "Orders", "request": { "method": "GET", "url": "{{base_url}}/orders" } },
-        { "name": "Order detail", "request": { "method": "GET", "url": "{{base_url}}/orders/{{order_number}}" } },
-        { "name": "Cancel unpaid order", "request": { "method": "POST", "url": "{{base_url}}/orders/{{order_number}}/cancel" } },
         { "name": "Notifications", "request": { "method": "GET", "url": "{{base_url}}/notifications" } },
-        { "name": "Mark notification read", "request": { "method": "PATCH", "url": "{{base_url}}/notifications/{{notification_id}}/read" } },
         { "name": "Mark all read", "request": { "method": "POST", "url": "{{base_url}}/notifications/read-all" } }
       ]
     }

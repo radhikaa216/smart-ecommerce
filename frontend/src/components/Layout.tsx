@@ -19,6 +19,6 @@ export default function Layout() {
       </nav>
     </header>
     <main><Outlet /></main>
-    <footer><div><strong>Northstar Goods</strong><p>A local production-style commerce demonstration.</p></div><div><span>FastAPI</span><span>Django</span><span>React</span><span>MySQL</span></div></footer>
+    <footer><div><strong>Northstar Goods</strong><p>A local production-style commerce demonstration.</p></div></footer>
   </div>;
 }

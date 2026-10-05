@@ -101,12 +101,3 @@ def remove_item(item_id: int, user: User = Depends(get_current_user), db: Sessio
     db.commit()
     publish_user_event(user.id, {"type": "cart_updated"})
     return Response(status_code=204)
-
-
-@router.delete("", status_code=204)
-def clear_cart(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    cart = get_or_create_cart(db, user.id)
-    db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
-    db.commit()
-    publish_user_event(user.id, {"type": "cart_updated"})
-    return Response(status_code=204)

@@ -41,19 +41,6 @@ def list_notifications(
     return [serialize_notification(item) for item in query.order_by(desc(Notification.created_at)).limit(100).all()]
 
 
-@router.patch("/notifications/{notification_id}/read")
-def mark_read(
-    notification_id: int,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    item = db.query(Notification).filter(Notification.id == notification_id, Notification.user_id == user.id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    item.is_read = True
-    item.read_at = datetime.utcnow()
-    db.commit()
-    return serialize_notification(item)
 
 
 @router.post("/notifications/read-all")
