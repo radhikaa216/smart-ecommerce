@@ -50,7 +50,7 @@ Open:
 Local demo accounts are created idempotently at startup:
 
 - Storefront: `customer@example.com` / `customer123`
-- Django Admin: `admin` / `admin123`
+- Django Admin: `admin@example.com` / `admin123`
 
 Change these credentials if the project is ever made accessible beyond localhost.
 
@@ -94,7 +94,7 @@ To demonstrate Auth0 only:
 1. Create an Auth0 Single Page Application.
 2. Create an Auth0 API with audience `https://api.smart-ecommerce.local`.
 3. Add `http://localhost:5173` to callback, logout, and web-origin URLs.
-4. Enable the database, Google, and—if available—Facebook connections.
+4. Enable the database, Google, andÃ¢â‚¬â€if availableÃ¢â‚¬â€Facebook connections.
 5. Set both auth modes to `auth0` and fill in the Auth0 variables in `.env`.
 6. Restart the frontend and FastAPI services.
 

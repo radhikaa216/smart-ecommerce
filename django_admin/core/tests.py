@@ -21,7 +21,7 @@ class DashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_staff_can_view_dashboard(self):
-        user = get_user_model().objects.create_user("staff", password="password", is_staff=True)
+        user = get_user_model().objects.create_user(email="staff@example.com", name="staff", password="password", role="staff", is_staff=True)
         self.client.force_login(user)
         response = self.client.get(reverse("dashboard"))
         self.assertEqual(response.status_code, 200)

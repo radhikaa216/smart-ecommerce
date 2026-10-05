@@ -13,9 +13,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         admin_model = get_user_model()
-        if not admin_model.objects.filter(username="admin").exists():
-            admin_model.objects.create_superuser("admin", "admin@example.com", "admin123")
-            self.stdout.write(self.style.WARNING("Created local Django admin: admin / admin123"))
+        if not admin_model.objects.filter(email="admin@example.com").exists():
+            admin_model.objects.create_superuser(email="admin@example.com", password="admin123", name="admin")
+            self.stdout.write(self.style.WARNING("Created local Django admin: admin@example.com / admin123"))
 
         password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         customer, created = Customer.objects.get_or_create(

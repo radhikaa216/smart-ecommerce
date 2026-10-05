@@ -7,6 +7,7 @@ from django.contrib import admin, messages
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.db import transaction
+from passlib.context import CryptContext
 
 from .models import (
     Address, AuditLog, Cart, CartItem, Category, Customer, EmailDeliveryLog,
@@ -82,12 +83,70 @@ class CategoryAdmin(admin.ModelAdmin):
     prepopulated_fields = {"slug": ("name",)}
 
 
+class UnifiedUserCreationForm(forms.ModelForm):
+    password1 = forms.CharField(required=False, widget=forms.PasswordInput)
+    password2 = forms.CharField(required=False, widget=forms.PasswordInput)
+
+    class Meta:
+        model = Customer
+        fields = ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified")
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("password1") != cleaned.get("password2"):
+            raise forms.ValidationError("The two password fields do not match.")
+        return cleaned
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get("password1")
+        if password:
+            user.set_password(password)
+            user.password_hash = CryptContext(schemes=["bcrypt"], deprecated="auto").hash(password)
+        else:
+            user.set_unusable_password()
+        if commit:
+            user.save()
+        return user
+
+
+class UnifiedUserChangeForm(forms.ModelForm):
+    local_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(render_value=False),
+        help_text="Optional. Sets a new local password for both Django Admin and FastAPI login.",
+    )
+
+    class Meta:
+        model = Customer
+        fields = ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified", "avatar_url")
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get("local_password")
+        if password:
+            user.set_password(password)
+            user.password_hash = CryptContext(schemes=["bcrypt"], deprecated="auto").hash(password)
+        if commit:
+            user.save()
+        return user
+
+
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("name", "email", "role", "is_active", "email_verified", "created_at")
-    list_filter = ("role", "is_active", "email_verified")
+    list_display = ("name", "email", "role", "is_staff", "is_superuser", "is_active", "email_verified", "created_at")
+    list_filter = ("role", "is_staff", "is_superuser", "is_active", "email_verified")
     search_fields = ("name", "email", "auth0_id")
-    readonly_fields = ("password_hash", "last_login_at", "created_at", "updated_at")
+    readonly_fields = ("auth0_id", "password_hash", "last_login", "last_login_at", "created_at", "updated_at")
+
+    def get_form(self, request, obj=None, **kwargs):
+        kwargs["form"] = UnifiedUserCreationForm if obj is None else UnifiedUserChangeForm
+        return super().get_form(request, obj, **kwargs)
+
+    def get_fields(self, request, obj=None):
+        if obj is None:
+            return ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified", "password1", "password2")
+        return ("email", "name", "role", "is_active", "is_staff", "is_superuser", "email_verified", "avatar_url", "auth0_id", "local_password", "password_hash", "last_login", "last_login_at", "created_at", "updated_at")
 
 
 class OrderItemInline(admin.TabularInline):

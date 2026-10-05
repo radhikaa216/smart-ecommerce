@@ -16,7 +16,7 @@
 4. Begin checkout and explain that prices and stock are revalidated on FastAPI.
 5. Complete local demo checkout and open order history.
 6. Verify the confirmation email in the recipient inbox and show the successful Celery task log.
-7. Sign in to Django Admin with `admin` / `admin123`.
+7. Sign in to Django Admin with `admin@example.com` / `admin123`.
 8. Add/edit a product and upload an image from the local machine.
 9. Update an order status and return to the React notification screen.
 10. Open the analytics dashboard and export CSV/PDF reports.
@@ -41,6 +41,6 @@ After completing the localhost Auth0 dashboard steps in the README, switch both 
 - Django migrations own the schema; FastAPI maps the same tables.
 - MySQL stores permanent state; Redis stores transient queues/events.
 - Celery isolates email and expiry jobs from API response time.
-- Payment success comes from a verified, idempotent webhook—not a browser redirect.
+- Payment success comes from a verified, idempotent webhookÃ¢â‚¬â€not a browser redirect.
 - Order items snapshot product name/SKU/price so history remains correct after catalog changes.
 - Stock is reserved transactionally and returned when checkout expires.
