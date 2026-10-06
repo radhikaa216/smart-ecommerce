@@ -4,6 +4,8 @@ A full-stack e-commerce application with a React storefront, FastAPI customer AP
 
 The current local setup runs the application services in Docker and connects them to MySQL Server on Windows. A fully Docker-based MySQL setup is also supported.
 
+New to the project? Read the [complete beginner-friendly application handbook](APPLICATION_HANDBOOK.md) for every UI, API, database, Auth0, Stripe, Redis, Celery, SMTP, webhook, and Django Admin flow.
+
 ## Implemented features
 
 - Product catalog with search, category filters, sorting, product details, stock status, and images
