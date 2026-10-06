@@ -29,3 +29,9 @@ coverage/
 media/
 exports/
 staticfiles/
+
+# Local migration backups and generated runtime files
+backups/
+django_admin/celerybeat-schedule
+frontend/vite.config.js
+frontend/vite.config.d.ts
