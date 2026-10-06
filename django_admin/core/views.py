@@ -2,8 +2,7 @@ import csv
 from io import BytesIO
 
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Count, F, Sum
-from django.db.models.functions import TruncDate
+from django.db.models import Count, DateField, F, Func, Sum
 from django.http import HttpResponse
 from django.shortcuts import render
 from reportlab.lib.pagesizes import A4
@@ -21,9 +20,14 @@ def analytics_context():
         .annotate(quantity=Sum("quantity"), revenue=Sum("line_total"))
         .order_by("-quantity")[:5]
     )
+    # Use MySQL DATE() directly. Django's TruncDate performs timezone
+    # conversion first; that returns NULL on local MySQL installations whose
+    # timezone tables have not been loaded.
     revenue_trend = [
         row
-        for row in paid.annotate(day=TruncDate("created_at"))
+        for row in paid.annotate(
+            day=Func(F("created_at"), function="DATE", output_field=DateField())
+        )
         .values("day")
         .annotate(revenue=Sum("total"), orders=Count("id"))
         .order_by("day")[:30]
