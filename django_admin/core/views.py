@@ -21,12 +21,14 @@ def analytics_context():
         .annotate(quantity=Sum("quantity"), revenue=Sum("line_total"))
         .order_by("-quantity")[:5]
     )
-    revenue_trend = list(
-        paid.annotate(day=TruncDate("created_at"))
+    revenue_trend = [
+        row
+        for row in paid.annotate(day=TruncDate("created_at"))
         .values("day")
         .annotate(revenue=Sum("total"), orders=Count("id"))
         .order_by("day")[:30]
-    )
+        if row["day"] is not None
+    ]
     return {
         "total_revenue": revenue,
         "total_orders": Order.objects.count(),
